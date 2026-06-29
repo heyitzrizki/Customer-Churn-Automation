@@ -1,176 +1,190 @@
-# Customer Churn Automation
+# Customer Retention Intelligence System
 
-Customer churn prediction project for Iranian telecom customer data. This repository contains the notebook used to train the model, the trained model artifact, and a Python bridge script that can be called from n8n using the Execute Command node.
+An end-to-end customer retention intelligence system that combines churn prediction, customer segmentation, business-readable risk explanation, recommended retention actions, and n8n automation.
 
-## Project Contents
+## Business Problem
 
-| Path | Description |
-| --- | --- |
-| `Customer Churn.csv` | Original Iranian customer churn dataset from UCI Machine Learning Repository |
-| `Customer_Churn_Prediction.ipynb` | Jupyter notebook for EDA, feature engineering, model training, evaluation, and XAI |
-| `predict.py` | Python bridge script for n8n integration |
-| `sample_customer.json` | Sample customer payload for local prediction testing |
-| `artifacts/iranian_churn_model.joblib` | Trained Random Forest model |
-| `artifacts/model_metadata.json` | Model metadata, feature list, threshold, and test metrics |
-| `Dockerfile` | Custom n8n image setup for Python execution |
+Telecom retention teams need more than a churn probability. They need to know which customers deserve attention, why they are at risk, and what action should happen next in CRM or automation workflows.
 
-## Model Summary
+This project turns Iranian telecom customer churn data into an operational retention workflow that can support business users, portfolio review, and n8n-driven follow-up.
 
-The final model is a Random Forest classifier trained to predict whether a customer will churn.
+## What This Project Does
 
-Test metrics:
+- Predicts customer churn risk from customer behavior data.
+- Compares Logistic Regression, Random Forest, XGBoost, and LightGBM when available.
+- Groups customers into business-readable customer segments.
+- Scores retention priority using churn risk, customer value, and service issue signals.
+- Explains each risk score with simple risk drivers.
+- Recommends a practical retention action for each customer.
+- Keeps the existing JSON prediction workflow compatible with n8n.
 
-| Metric | Value |
-| --- | ---: |
-| Accuracy | 0.9632 |
-| Precision | 0.9048 |
-| Recall | 0.8539 |
-| F1 Score | 0.8786 |
-| ROC-AUC | 0.9841 |
-| PR-AUC | 0.9048 |
+## Dashboard Pages
 
-The production threshold is stored in `artifacts/model_metadata.json`.
+The Streamlit app has only two business-facing pages:
 
-## Input Schema
+1. **Customer Segmentation**: shows customer groups, segment size, average churn risk, average value, complaint rate, suggested strategy, and a value-versus-risk map.
+2. **Churn Risk Scoring**: shows who to act on, why, recommended actions, priority level, and a downloadable retention target list.
 
-`predict.py` expects these customer fields:
+Run it with:
 
-```json
-{
-  "call_failure": 12,
-  "complains": 1,
-  "subscription_length": 38,
-  "charge_amount": 0,
-  "seconds_of_use": 4370,
-  "frequency_of_use": 71,
-  "frequency_of_sms": 5,
-  "distinct_called_numbers": 17,
-  "age_group": 3,
-  "tariff_plan": 1,
-  "status": 1,
-  "age": 30,
-  "customer_value": 197.64
-}
+```bash
+streamlit run app/streamlit_app.py
 ```
 
-Extra fields such as `email` and `nama` are allowed. They are ignored by the model.
+## Machine Learning Model Comparison
 
-## Local Usage
+`src/train_models.py` trains and compares:
+
+- Logistic Regression
+- Random Forest
+- XGBoost, if installed
+- LightGBM, if installed
+
+Models are evaluated using ROC-AUC, PR-AUC, F1-score, precision, recall, and accuracy. The best model is saved to `artifacts/iranian_churn_model.joblib`, and the comparison table is saved to `data/processed/model_comparison.csv`.
+
+If XGBoost or LightGBM are unavailable, the script skips them and continues with the available models.
+
+## Retention Priority and Action Logic
+
+The retention layer is a hybrid business decision layer:
+
+- Churn probability comes from the machine learning model.
+- Retention priority combines model risk, customer value, and service issue signals.
+- Recommended actions are assigned using transparent business rules.
+
+Priority score:
+
+```text
+0.50 * churn risk score
++ 0.30 * customer value score
++ 0.20 * service issue score
+```
+
+Priority levels:
+
+- `P1`: score >= 80
+- `P2`: 60 <= score < 80
+- `P3`: 40 <= score < 60
+- `P4`: score < 40
+
+## n8n Automation Workflow
+
+The root `predict.py` remains available for existing n8n Execute Command workflows:
+
+```bash
+python /path/to/Customer-Churn-Automation/predict.py --json '{{ JSON.stringify($json) }}'
+```
+
+The output keeps the original fields:
+
+- `churn_probability`
+- `churn_prediction`
+- `threshold`
+
+It also adds business-ready fields for Telegram alerts, HubSpot updates, or CRM routing:
+
+- `risk_level`
+- `customer_value_tier`
+- `retention_priority_score`
+- `main_reason`
+- `recommended_action`
+- `priority`
+
+See `automation/README_n8n.md` for the automation notes.
+
+## Repository Structure
+
+```text
+Customer-Churn-Automation/
+├── app/
+│   ├── streamlit_app.py
+│   └── assets/
+│       └── n8n_workflow.png
+├── artifacts/
+│   ├── iranian_churn_model.joblib
+│   ├── model_metadata.json
+│   ├── segmentation_model.joblib
+│   └── scaler.joblib
+├── data/
+│   ├── raw/
+│   │   └── Customer Churn.csv
+│   └── processed/
+│       ├── customers_scored.csv
+│       ├── customer_segments.csv
+│       ├── model_comparison.csv
+│       └── retention_actions.csv
+├── src/
+│   ├── feature_engineering.py
+│   ├── train_models.py
+│   ├── build_segments.py
+│   ├── score_customers.py
+│   ├── recommend_actions.py
+│   └── explain_risk.py
+├── automation/
+│   ├── predict.py
+│   └── README_n8n.md
+├── notebooks/
+│   └── Customer_Churn_Prediction.ipynb
+├── predict.py
+├── sample_customer.json
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
+
+The original root dataset and notebook are preserved so older local workflows are not broken.
+
+## How To Run
 
 Install dependencies:
 
 ```bash
-pip install pandas numpy scikit-learn joblib
+pip install -r requirements.txt
 ```
 
-Run prediction with the sample payload:
+Train and compare models:
+
+```bash
+python src/train_models.py
+```
+
+Build customer segments:
+
+```bash
+python src/build_segments.py
+```
+
+Score all customers and create retention action outputs:
+
+```bash
+python src/score_customers.py
+```
+
+Test the n8n-compatible JSON predictor:
 
 ```bash
 python predict.py --input sample_customer.json
 ```
 
-Expected output:
-
-```json
-{
-  "model": "random_forest",
-  "predictions": [
-    {
-      "row": 1,
-      "churn_probability": 0.631285,
-      "churn_prediction": 1,
-      "threshold": 0.48215135924114494
-    }
-  ]
-}
-```
-
-You can also pass JSON directly:
+Launch the Streamlit app:
 
 ```bash
-python predict.py --json "{\"call_failure\":12,\"complains\":1,\"subscription_length\":38,\"charge_amount\":0,\"seconds_of_use\":4370,\"frequency_of_use\":71,\"frequency_of_sms\":5,\"distinct_called_numbers\":17,\"age_group\":3,\"tariff_plan\":1,\"status\":1,\"age\":30,\"customer_value\":197.64}"
+streamlit run app/streamlit_app.py
 ```
 
-## n8n Integration
+## Limitations
 
-Use the n8n Execute Command node to call `predict.py`.
+- The dataset does not include real campaign history.
+- Recommended actions are rule-based business decision logic, not proven causal treatment effects.
+- Campaign ROI is not calculated using real post-campaign outcomes.
+- Estimated value at risk is a customer value proxy, not actual proven lost revenue.
+- The system demonstrates how model outputs can be operationalized for retention workflows.
+- If XGBoost or LightGBM are unavailable in the environment, the project falls back to available models.
 
-Example command:
+## Future Improvements
 
-```bash
-python /path/to/predict.py --json '{{ JSON.stringify($json) }}'
-```
-
-If the workflow runs inside Docker, make sure these files are available inside the container:
-
-```text
-predict.py
-artifacts/iranian_churn_model.joblib
-artifacts/model_metadata.json
-```
-
-The command output is JSON, so n8n can parse it in the next node.
-
-## Execute Command Node Notes
-
-n8n may hide or disable the Execute Command node for security reasons. This node can run shell commands on the host/container, so it is powerful but risky if exposed to untrusted users.
-
-For self-hosted n8n, check the `NODES_EXCLUDE` environment variable. To enable all nodes, set:
-
-```bash
-NODES_EXCLUDE="[]"
-```
-
-For Docker Compose:
-
-```yaml
-environment:
-  - NODES_EXCLUDE=[]
-```
-
-If `Execute Command` is still unavailable, restart the n8n container after changing the environment variable.
-
-Official n8n docs:
-
-- https://docs.n8n.io/hosting/securing/blocking-nodes/
-- https://docs.n8n.io/2-0-breaking-changes/
-- https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.executecommand/
-
-## Docker
-
-Build the custom image:
-
-```bash
-docker build -t n8n-python .
-```
-
-Run n8n with Execute Command enabled:
-
-```bash
-docker run -it --rm \
-  --name n8n-python \
-  -p 5678:5678 \
-  -e NODES_EXCLUDE="[]" \
-  n8n-python
-```
-
-If Docker reports that `apk` or `apt-get` is not found, the base n8n image has changed. Adjust the Dockerfile to match the package manager available in the selected base image.
-
-## Repository
-
-Target repository:
-
-```text
-https://github.com/heyitzrizki/Customer-Churn-Automation
-```
-
-Recommended push flow:
-
-```bash
-git init
-git remote add origin https://github.com/heyitzrizki/Customer-Churn-Automation.git
-git add .
-git commit -m "Add customer churn automation project"
-git branch -M main
-git push -u origin main
-```
+- Add campaign response history and measure retention lift.
+- Add treatment/control experiment tracking.
+- Connect scored retention targets directly to HubSpot lists.
+- Add scheduled batch scoring through n8n or a lightweight job runner.
+- Add monitoring for model drift and changes in churn rate.

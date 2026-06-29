@@ -1,6 +1,5 @@
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -10,32 +9,22 @@ import pandas as pd
 
 
 BASE_DIR = Path(__file__).resolve().parent
+SRC_DIR = BASE_DIR / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+
+from explain_risk import explain_customer_risk
+from feature_engineering import add_engineered_features, clean_dataframe_columns, prepare_model_features
+from recommend_actions import (
+    priority_from_score,
+    recommended_retention_action,
+    retention_priority_score,
+    risk_level_from_probability,
+)
+
+
 DEFAULT_MODEL_PATH = BASE_DIR / "artifacts" / "iranian_churn_model.joblib"
 DEFAULT_METADATA_PATH = BASE_DIR / "artifacts" / "model_metadata.json"
-
-
-def clean_column_names(columns):
-    cleaned_columns = []
-    for column in columns:
-        column = str(column).strip().lower()
-        column = re.sub(r"[^0-9a-zA-Z]+", "_", column).strip("_")
-        cleaned_columns.append(column)
-    return cleaned_columns
-
-
-def add_engineered_features(data):
-    data = data.copy()
-    data["usage_minutes"] = data["seconds_of_use"] / 60
-    data["failed_call_rate"] = data["call_failure"] / (data["frequency_of_use"] + 1)
-    data["sms_share"] = data["frequency_of_sms"] / (
-        data["frequency_of_sms"] + data["frequency_of_use"] + 1
-    )
-    data["value_per_usage_minute"] = data["customer_value"] / (data["usage_minutes"] + 1)
-    data["value_per_frequency"] = data["customer_value"] / (data["frequency_of_use"] + 1)
-    data["calls_per_distinct_number"] = data["frequency_of_use"] / (
-        data["distinct_called_numbers"] + 1
-    )
-    return data
 
 
 def load_json_payload(args):
@@ -55,33 +44,21 @@ def load_json_payload(args):
     return payload
 
 
-def payload_to_frame(payload):
+def payload_to_records(payload):
     if isinstance(payload, dict):
-        records = [payload]
-    elif isinstance(payload, list):
-        records = payload
-    else:
-        raise ValueError("Payload must be a JSON object or a list of JSON objects.")
+        return [payload]
+    if isinstance(payload, list):
+        return payload
+    raise ValueError("Payload must be a JSON object or a list of JSON objects.")
 
+
+def payload_to_frame(payload):
+    records = payload_to_records(payload)
     data = pd.DataFrame(records)
-    data.columns = clean_column_names(data.columns)
+    data = clean_dataframe_columns(data)
+    if "customer_id" not in data.columns:
+        data.insert(0, "customer_id", [f"CUST_{index:03d}" for index in range(1, len(data) + 1)])
     return data
-
-
-def prepare_features(data, metadata):
-    raw_feature_columns = metadata["raw_feature_columns"]
-    model_feature_columns = metadata["model_feature_columns"]
-
-    missing_columns = [column for column in raw_feature_columns if column not in data.columns]
-    if missing_columns:
-        raise ValueError(f"Missing required columns: {missing_columns}")
-
-    data = data[raw_feature_columns].copy()
-    for column in raw_feature_columns:
-        data[column] = pd.to_numeric(data[column], errors="raise")
-
-    data = add_engineered_features(data)
-    return data[model_feature_columns]
 
 
 def to_python_value(value):
@@ -92,25 +69,64 @@ def to_python_value(value):
     return value
 
 
-def predict(payload, model_path, metadata_path):
+def prediction_record(row_number, row, probability, prediction, threshold, metadata):
+    risk_level = risk_level_from_probability(float(probability))
+    business_row = row.copy()
+    business_row["churn_probability"] = float(probability)
+    business_row["churn_prediction"] = int(prediction)
+    business_row["risk_level"] = risk_level
+
+    score = retention_priority_score(business_row, metadata)
+    business_row["retention_priority_score"] = score
+    business_row["priority"] = priority_from_score(score)
+    business_row["recommended_action"] = recommended_retention_action(business_row, metadata)
+
+    result = {
+        "row": row_number,
+        "customer_id": str(row.get("customer_id", f"CUST_{row_number:03d}")),
+        "churn_probability": to_python_value(round(float(probability), 6)),
+        "churn_prediction": to_python_value(int(prediction)),
+        "threshold": threshold,
+        "risk_level": risk_level,
+        "customer_value_tier": row.get("customer_value_tier", "Medium"),
+        "retention_priority_score": score,
+        "main_reason": explain_customer_risk(row, metadata.get("risk_driver_thresholds", {})),
+        "recommended_action": business_row["recommended_action"],
+        "priority": business_row["priority"],
+    }
+
+    for optional_field in ["email", "name", "nama", "phone"]:
+        if optional_field in row and pd.notna(row[optional_field]):
+            result[optional_field] = to_python_value(row[optional_field])
+    return result
+
+
+def predict(payload, model_path=DEFAULT_MODEL_PATH, metadata_path=DEFAULT_METADATA_PATH):
     model = joblib.load(model_path)
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-    threshold = float(metadata["threshold"])
+    threshold = float(metadata.get("threshold", metadata.get("selected_threshold", 0.5)))
 
     data = payload_to_frame(payload)
-    features = prepare_features(data, metadata)
+    features = prepare_model_features(data, metadata)
+    business_data, _ = add_engineered_features(
+        data,
+        value_thresholds=metadata.get("customer_value_quantile_thresholds"),
+    )
+
     probabilities = model.predict_proba(features)[:, 1]
     predictions = (probabilities >= threshold).astype(int)
 
     results = []
-    for row_number, (probability, prediction) in enumerate(zip(probabilities, predictions), start=1):
+    for row_number, (index, row) in enumerate(business_data.iterrows(), start=1):
         results.append(
-            {
-                "row": row_number,
-                "churn_probability": to_python_value(round(probability, 6)),
-                "churn_prediction": to_python_value(prediction),
-                "threshold": threshold,
-            }
+            prediction_record(
+                row_number=row_number,
+                row=row,
+                probability=probabilities[row_number - 1],
+                prediction=predictions[row_number - 1],
+                threshold=threshold,
+                metadata=metadata,
+            )
         )
 
     return {
@@ -120,7 +136,7 @@ def predict(payload, model_path, metadata_path):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Predict Iranian telecom customer churn from JSON.")
+    parser = argparse.ArgumentParser(description="Predict customer churn risk from JSON.")
     parser.add_argument("--json", help="JSON object or list of objects.")
     parser.add_argument("--input", help="Path to a JSON input file.")
     parser.add_argument("--model", default=DEFAULT_MODEL_PATH, type=Path)

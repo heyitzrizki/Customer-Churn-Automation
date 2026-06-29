@@ -1,6 +1,57 @@
 {
   "dataset": "Customer Churn.csv",
   "target": "churn",
+  "best_model": "lightgbm",
+  "model_comparison_metrics": [
+    {
+      "model": "lightgbm",
+      "threshold": 0.3292908351136531,
+      "accuracy": 0.9714285714285714,
+      "precision": 0.8715596330275229,
+      "recall": 0.9595959595959596,
+      "f1": 0.9134615384615384,
+      "roc_auc": 0.9948448705510853,
+      "pr_auc": 0.9744121617776963
+    },
+    {
+      "model": "xgboost",
+      "threshold": 0.42563971877098083,
+      "accuracy": 0.973015873015873,
+      "precision": 0.8867924528301887,
+      "recall": 0.9494949494949495,
+      "f1": 0.9170731707317074,
+      "roc_auc": 0.9936084003880614,
+      "pr_auc": 0.9727041144961753
+    },
+    {
+      "model": "random_forest",
+      "threshold": 0.5208580666149656,
+      "accuracy": 0.9698412698412698,
+      "precision": 0.8921568627450981,
+      "recall": 0.9191919191919192,
+      "f1": 0.9054726368159204,
+      "roc_auc": 0.9883391352317906,
+      "pr_auc": 0.9264830640887313
+    },
+    {
+      "model": "logistic_regression",
+      "threshold": 0.7305487895719961,
+      "accuracy": 0.9079365079365079,
+      "precision": 0.6814159292035398,
+      "recall": 0.7777777777777778,
+      "f1": 0.7264150943396226,
+      "roc_auc": 0.9289695447887538,
+      "pr_auc": 0.771794629928692
+    }
+  ],
+  "test_metrics": {
+    "accuracy": 0.9714285714285714,
+    "precision": 0.8715596330275229,
+    "recall": 0.9595959595959596,
+    "f1": 0.9134615384615384,
+    "roc_auc": 0.9948448705510853,
+    "pr_auc": 0.9744121617776963
+  },
   "raw_feature_columns": [
     "call_failure",
     "complains",
@@ -35,7 +86,9 @@
     "sms_share",
     "value_per_usage_minute",
     "value_per_frequency",
-    "calls_per_distinct_number"
+    "calls_per_distinct_number",
+    "engagement_score",
+    "usage_intensity"
   ],
   "categorical_features": [
     "complains",
@@ -58,16 +111,30 @@
     "sms_share",
     "value_per_usage_minute",
     "value_per_frequency",
-    "calls_per_distinct_number"
+    "calls_per_distinct_number",
+    "engagement_score",
+    "usage_intensity"
   ],
-  "best_model": "random_forest",
-  "threshold": 0.48215135924114494,
-  "test_metrics": {
-    "accuracy": 0.9631578947368421,
-    "precision": 0.9047619047619048,
-    "recall": 0.8539325842696629,
-    "f1": 0.8786127167630058,
-    "roc_auc": 0.9840570907986638,
-    "pr_auc": 0.9048070654177176
-  }
+  "threshold": 0.3292908351136531,
+  "selected_threshold": 0.3292908351136531,
+  "customer_value_quantile_thresholds": {
+    "low": 150.0868,
+    "high": 449.6708,
+    "min": 0.0,
+    "max": 2165.28
+  },
+  "risk_level_thresholds": {
+    "high": 0.65,
+    "medium": 0.35,
+    "low": 0.0
+  },
+  "risk_driver_thresholds": {
+    "failed_call_rate_high": 0.1836734693877551,
+    "frequency_of_use_low": 27.0,
+    "seconds_of_use_low": 1391.25,
+    "customer_value_low": 113.80125
+  },
+  "training_date": "2026-06-29T08:34:46.952582+00:00",
+  "dataset_row_count": 3150,
+  "churn_rate": 0.15714285714285714
 }
