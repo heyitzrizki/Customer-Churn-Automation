@@ -44,7 +44,7 @@ data/
   raw/Customer Churn.csv
   processed/
 notebooks/
-  Customer_Churn_Prediction.ipynb
+  Customer Retention Intelligence System.ipynb
 src/
   build_segments.py
   explain_risk.py
@@ -53,7 +53,6 @@ src/
   score_customers.py
   train_models.py
 predict.py
-sample_customer.json
 requirements.txt
 Dockerfile
 ```
@@ -114,7 +113,7 @@ streamlit run app/streamlit_app.py
 `predict.py` is the script used by n8n. It accepts a JSON object or a list of JSON objects.
 
 ```bash
-python predict.py --input sample_customer.json
+python predict.py --json '{"email":"johndoe@gmail.com","nama":"John Doe","call_failure":12,"complains":1,"subscription_length":38,"charge_amount":0,"seconds_of_use":4370,"frequency_of_use":71,"frequency_of_sms":5,"distinct_called_numbers":17,"age_group":3,"tariff_plan":1,"status":1,"age":30,"customer_value":197.64}'
 ```
 
 Example input:
@@ -212,3 +211,5 @@ streamlit run app/streamlit_app.py
 - The dataset does not include campaign history, so the recommended actions are rule-based, not causal treatment recommendations.
 - `customer_value` is used as a value proxy. It is not proven lost revenue.
 - The churn model was trained on a public telecom dataset, so real deployment should include monitoring and retraining with current customer data.
+
+Developed by Rizki Anwar Syaifullah as a portfolio project.
