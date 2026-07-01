@@ -10,7 +10,6 @@ from feature_engineering import RAW_FEATURE_COLUMNS, ensure_customer_id, prepare
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = BASE_DIR / "data" / "raw" / "Customer Churn.csv"
-FALLBACK_DATA_PATH = BASE_DIR / "Customer Churn.csv"
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 SEGMENT_MODEL_PATH = ARTIFACTS_DIR / "segmentation_model.joblib"
@@ -30,8 +29,7 @@ SEGMENT_FEATURES = [
 
 
 def load_dataset() -> pd.DataFrame:
-    path = DATA_PATH if DATA_PATH.exists() else FALLBACK_DATA_PATH
-    return pd.read_csv(path)
+    return pd.read_csv(DATA_PATH)
 
 
 def describe_segment(row: pd.Series) -> tuple[str, str, str]:

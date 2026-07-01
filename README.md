@@ -1,6 +1,6 @@
-# Customer Churn Automation
+# Customer Retention Intelligence System
 
-This project turns the Iranian telecom churn dataset into a small retention workflow:
+This project turns the Iranian telecom churn dataset into a customer retention intelligence workflow:
 
 - train a churn model
 - segment customers
@@ -121,7 +121,7 @@ Example input:
 
 ```json
 {
-  "email": "johndoe@gatglobal.co.kr",
+  "email": "johndoe@gmail.com",
   "nama": "John Doe",
   "call_failure": 12,
   "complains": 1,
@@ -157,7 +157,7 @@ Example output:
       "main_reason": "Complaint recorded",
       "recommended_action": "Personalized retention offer",
       "priority": "P3",
-      "email": "johndoe@gatglobal.co.kr",
+      "email": "johndoe@gmail.com",
       "nama": "John Doe"
     }
   ]

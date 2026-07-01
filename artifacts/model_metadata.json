@@ -134,7 +134,7 @@
     "seconds_of_use_low": 1391.25,
     "customer_value_low": 113.80125
   },
-  "training_date": "2026-06-29T08:34:46.952582+00:00",
+  "training_date": "2026-07-01T05:41:49.158872+00:00",
   "dataset_row_count": 3150,
   "churn_rate": 0.15714285714285714
 }

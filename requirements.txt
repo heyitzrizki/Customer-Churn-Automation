@@ -1,8 +1,10 @@
 pandas
 numpy
+seaborn
 scikit-learn
 joblib
 streamlit
 plotly
 xgboost
 lightgbm
+shap

@@ -11,7 +11,6 @@ from recommend_actions import add_retention_recommendations, risk_level_from_pro
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_PATH = BASE_DIR / "data" / "raw" / "Customer Churn.csv"
-FALLBACK_DATA_PATH = BASE_DIR / "Customer Churn.csv"
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 MODEL_PATH = ARTIFACTS_DIR / "iranian_churn_model.joblib"
@@ -22,8 +21,7 @@ RETENTION_ACTIONS_PATH = PROCESSED_DIR / "retention_actions.csv"
 
 
 def load_dataset() -> pd.DataFrame:
-    path = DATA_PATH if DATA_PATH.exists() else FALLBACK_DATA_PATH
-    return pd.read_csv(path)
+    return pd.read_csv(DATA_PATH)
 
 
 def load_segments() -> pd.DataFrame:
